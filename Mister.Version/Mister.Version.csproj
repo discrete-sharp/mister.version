@@ -1,0 +1,79 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net472;net8.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<IsPackable>true</IsPackable>
+		<Version>1.0.6</Version>
+		<Title>Mister.Version</Title>
+		<Description>Generates versions independantly for C# projects in a mono-repo.</Description>
+		<PackageTags>versioning;git;monorepo;csharp</PackageTags>
+		<License>MIT</License>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<RepositoryUrl>https://github.com/discrete-sharp/Mister.Version</RepositoryUrl>
+		<!-- This target will run when MSBuild is collecting the files to be packaged, and we'll implement it below. This property controls the dependency list for this packaging process, so by adding our custom property we hook ourselves into the process in a supported way. -->
+		<TargetsForTfmSpecificBuildOutput>
+			$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage
+		</TargetsForTfmSpecificBuildOutput>
+		<!-- This property tells MSBuild where the root folder of the package's build assets should be. Because we are not a library package, we should not pack to 'lib'. Instead, we choose 'tasks' by convention. -->
+		<BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>
+		<!-- NuGet does validation that libraries in a package are exposed as dependencies, but we _explicitly_ do not want that behavior for MSBuild tasks. They are isolated by design. Therefore we ignore this specific warning. -->
+		<NoWarn>NU5100</NoWarn>
+		<!-- Suppress NuGet warning NU5128. -->
+		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+		<!-- Tell the SDK to generate a deps.json file -->
+		<GenerateDependencyFile>true</GenerateDependencyFile>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>icon.png</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="../icon.png" Pack="true" PackagePath="" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Build.Framework" Version="17.13.9" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.13.9" PrivateAssets="all" ExcludeAssets="Runtime" />
+		<PackageReference Include="LibGit2Sharp" Version="0.31.0" PrivateAssets="all" />
+		<PackageReference Include="LibGit2Sharp.NativeBinaries" Version="2.0.323" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+		<PackageReference Include="System.Text.Json" Version="8.0.5" PrivateAssets="all" />
+	</ItemGroup>
+
+	<Choose>
+		<When Condition="'$(TargetFramework)'=='net472'">
+			<PropertyGroup>
+				<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+			</PropertyGroup>
+		</When>
+		<Otherwise>
+			<ItemGroup>
+				<Compile Remove="PathUtils.cs" />
+			</ItemGroup>
+		</Otherwise>
+	</Choose>
+
+	<Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+		<ItemGroup>
+			<LibGitRefs Include="$(PkgLibGit2Sharp_NativeBinaries)\runtimes\win-x64\native\git2-3f4182d.dll;$(PkgLibGit2Sharp_NativeBinaries)\runtimes\linux-x64\native\libgit2-3f4182d.so" />
+			<!-- The TargetPath is the path inside the package that the source file will be placed. This is already precomputed in the ReferenceCopyLocalPaths items' DestinationSubPath, so reuse it here. -->
+			<BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" TargetPath="%(ReferenceCopyLocalPaths.DestinationSubPath)" />
+			<BuildOutputInPackage Include="@(LibGitRefs)" TargetPath="%(LibGitRefs.FileName)%(LibGitRefs.Extension)" />
+		</ItemGroup>
+	</Target>
+	
+	<!-- This target adds the generated deps.json file to our package output -->
+	<Target Name="AddBuildDependencyFileToBuiltProjectOutputGroupOutput" BeforeTargets="BuiltProjectOutputGroup" Condition=" '$(GenerateDependencyFile)' == 'true'">
+		<ItemGroup>
+			<BuiltProjectOutputGroupOutput Include="$(ProjectDepsFilePath)" TargetPath="$(ProjectDepsFileName)" FinalOutputPath="$(ProjectDepsFilePath)" />
+		</ItemGroup>
+	</Target>
+
+	<ItemGroup>
+		<!-- these lines pack the build props/targets files to the `build` folder in the generated package.
+        by convention, the .NET SDK will look for build\<Package Id>.props and build\<Package Id>.targets
+        for automatic inclusion in the build. -->
+		<Content Include="build\Mister.Version.props" PackagePath="build\" />
+		<Content Include="build\Mister.Version.targets" PackagePath="build\" />
+	</ItemGroup>
+
+</Project>

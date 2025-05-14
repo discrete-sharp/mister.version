@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<RootNamespace>Mister.Version.CLI</RootNamespace>
+		<AssemblyName>mr-version</AssemblyName>
+		<Version>1.0.1</Version>
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>mr-version</ToolCommandName>
+		<PackageId>Mister.Version.CLI</PackageId>
+		<Title>MonoRepo Versioning CLI Tool</Title>
+		<Description>Command-line tool for reporting and calculating versions in a monorepo</Description>
+		<PackageTags>versioning;monorepo;git</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>icon.png</PackageIcon>
+		<License>MIT</License>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="../icon.png" Pack="true" PackagePath="" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="CommandLineParser" Version="2.9.1" />
+		<PackageReference Include="LibGit2Sharp" Version="0.29.0" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <!-- Include the versioning task -->
+    <UsingTask TaskName="Mister.Version.MonoRepoVersionTask" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/$(AppSettingStronglyTyped_TFM)/Mister.Version.dll" />
+
+    <!-- Override GetAssemblyVersion target to ensure our version calculation runs early enough -->
+    <Target Name="_MonoRepoCalculateVersion">
+        <!-- Automatically detect dependencies based on ProjectReference -->
+        <ItemGroup>
+            <_MonoRepoDependencies Include="@(ProjectReference)" />
+        </ItemGroup>
+
+        <!-- Run the versioning task -->
+        <MonoRepoVersionTask ProjectPath="$(MSBuildProjectFullPath)" RepoRoot="$(MonoRepoRoot)" TagPrefix="$(MonoRepoTagPrefix)" UpdateProjectFile="$(MonoRepoUpdateProjectFile)" ForceVersion="$(ForceVersion)" Debug="$(MonoRepoDebug)" ExtraDebug="$(MonoRepoExtraDebug)" SkipTestProjects="$(MonoRepoSkipTestProjects)" SkipNonPackableProjects="$(MonoRepoSkipNonPackableProjects)" IsTestProject="$(IsTestProject)" IsPackable="$(IsPackable)" Dependencies="@(_MonoRepoDependencies)">
+
+            <Output TaskParameter="Version" PropertyName="FullVersion" />
+            <Output TaskParameter="VersionChanged" PropertyName="VersionChanged" />
+        </MonoRepoVersionTask>
+
+        <!-- Set MSBuild properties from our calculated version -->
+        <PropertyGroup>
+            <!-- Create different version formats for different purposes -->
+
+            <!-- Check if this is a pre-release version (has a dash) -->
+            <IsPrerelease Condition="$(FullVersion.Contains('-'))">true</IsPrerelease>
+            <IsPrerelease Condition="!$(FullVersion.Contains('-'))">false</IsPrerelease>
+
+            <!-- For pre-release versions, use different formats for different purposes -->
+            <MainVersion Condition="'$(IsPrerelease)' == 'true'">$(FullVersion.Split('-')[0])</MainVersion>
+            <MainVersion Condition="'$(IsPrerelease)' == 'false'">$(FullVersion)</MainVersion>
+
+            <!-- Package version (NuGet) can use the full semver -->
+            <PackageVersion>$(FullVersion)</PackageVersion>
+            <Version>$(FullVersion)</Version>
+
+            <!-- Assembly version must be numeric only -->
+            <AssemblyVersion>$(MainVersion)</AssemblyVersion>
+
+            <!-- File version can have 4 parts max and must be numeric -->
+            <FileVersion>$(MainVersion)</FileVersion>
+
+            <!-- Informational version can have the full semver -->
+            <InformationalVersion>$(FullVersion)</InformationalVersion>
+        </PropertyGroup>
+
+        <Message Text="MonoRepo Versioning: Using package version $(PackageVersion) for $(MSBuildProjectName)" Importance="High" />
+        <Message Text="MonoRepo Versioning: Using assembly version $(AssemblyVersion) for $(MSBuildProjectName)" Importance="High" />
+    </Target>
+
+    <!-- Target to create version tags for the current project -->
+    <Target Name="TagMonoRepoVersion" DependsOnTargets="_MonoRepoCalculateVersion">
+        <PropertyGroup>
+            <TagName>$(MonoRepoTagPrefix)$(PackageVersion)-$(MSBuildProjectName.ToLowerInvariant())</TagName>
+            <GitExec Condition="'$(OS)' == 'Windows_NT'">git</GitExec>
+            <GitExec Condition="'$(OS)' != 'Windows_NT'">git</GitExec>
+            <!-- Check if version changed from base version, indicating changes were detected -->
+            <HasChanges>false</HasChanges>
+            <HasChanges Condition="'$(VersionChanged)' == 'true'">true</HasChanges>
+            <!-- Skip tagging for test projects and non-packable projects -->
+            <ShouldSkipTagging>false</ShouldSkipTagging>
+            <ShouldSkipTagging Condition="'$(IsTestProject)' == 'true' AND '$(MonoRepoSkipTestProjects)' == 'true'">true</ShouldSkipTagging>
+            <ShouldSkipTagging Condition="'$(IsPackable)' != 'true' AND '$(MonoRepoSkipNonPackableProjects)' == 'true'">true</ShouldSkipTagging>
+        </PropertyGroup>
+
+        <!-- Only create a tag if changes were detected and we shouldn't skip tagging -->
+        <Exec Command="$(GitExec) tag -a $(TagName) -m &quot;Version $(PackageVersion) of $(MSBuildProjectName)&quot;" WorkingDirectory="$(MonoRepoRoot)" ContinueOnError="true" Condition="'$(HasChanges)' == 'true' AND '$(ShouldSkipTagging)' != 'true'" />
+
+        <Message Text="Created version tag $(TagName) for $(MSBuildProjectName)" Importance="High" Condition="'$(HasChanges)' == 'true' AND '$(ShouldSkipTagging)' != 'true'" />
+
+        <Message Text="No changes detected for $(MSBuildProjectName), skipping tag creation" Importance="High" Condition="'$(HasChanges)' != 'true' AND '$(ShouldSkipTagging)' != 'true'" />
+
+        <Message Text="Skipping versioning for $(MSBuildProjectName) (test or non-packable project)" Importance="High" Condition="'$(ShouldSkipTagging)' == 'true'" />
+    </Target>
+
+    <Target Name="PushMonoRepoTags" DependsOnTargets="TagMonoRepoVersion">
+        <PropertyGroup>
+            <GitExec Condition="'$(OS)' == 'Windows_NT'">git</GitExec>
+            <GitExec Condition="'$(OS)' != 'Windows_NT'">git</GitExec>
+        </PropertyGroup>
+
+        <Exec Command="$(GitExec) push origin --tags" WorkingDirectory="$(MonoRepoRoot)" ContinueOnError="true" />
+
+        <Message Text="Pushed version tags for $(MSBuildProjectName)" Importance="High" />
+    </Target>
+</Project>

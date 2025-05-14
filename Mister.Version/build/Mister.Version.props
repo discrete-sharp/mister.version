@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <!-- Define properties -->
+    <PropertyGroup>
+        <AppSettingStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</AppSettingStronglyTyped_TFM>
+        <AppSettingStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net8.0</AppSettingStronglyTyped_TFM>
+        <MonoRepoVersioningEnabled Condition="'$(MonoRepoVersioningEnabled)' == ''">true</MonoRepoVersioningEnabled>
+        <MonoRepoRoot Condition="'$(MonoRepoRoot)' == ''">$(ProjectDir)../</MonoRepoRoot>
+        <MonoRepoTagPrefix Condition="'$(MonoRepoTagPrefix)' == ''">v</MonoRepoTagPrefix>
+        <!-- Default to NOT updating project files to avoid requiring commits -->
+        <MonoRepoUpdateProjectFile Condition="'$(MonoRepoUpdateProjectFile)' == ''">false</MonoRepoUpdateProjectFile>
+        <!-- Enable debug mode for extra logging -->
+        <MonoRepoDebug Condition="'$(MonoRepoDebug)' == ''">false</MonoRepoDebug>
+        <!-- Enable extra debug mode for detailed dependency and commit info -->
+        <MonoRepoExtraDebug Condition="'$(MonoRepoExtraDebug)' == ''">false</MonoRepoExtraDebug>
+        <!-- Skip test projects by default -->
+        <MonoRepoSkipTestProjects Condition="'$(MonoRepoSkipTestProjects)' == ''">true</MonoRepoSkipTestProjects>
+        <!-- Skip non-packable projects by default -->
+        <MonoRepoSkipNonPackableProjects Condition="'$(MonoRepoSkipNonPackableProjects)' == ''">true</MonoRepoSkipNonPackableProjects>
+    </PropertyGroup>
+
+    <!-- Wire up our version calculation to run before any target that might use the version -->
+    <PropertyGroup>
+        <!-- List of targets that need our version -->
+        <BuildDependsOn>
+      _MonoRepoCalculateVersion;
+      $(BuildDependsOn)
+        </BuildDependsOn>
+        <GetPackageVersionDependsOn>
+      _MonoRepoCalculateVersion;
+      $(GetPackageVersionDependsOn)
+        </GetPackageVersionDependsOn>
+        <GenerateNuspecDependsOn>
+      _MonoRepoCalculateVersion;
+      $(GenerateNuspecDependsOn)
+        </GenerateNuspecDependsOn>
+    </PropertyGroup>
+</Project>
